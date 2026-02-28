@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostSwap 👻 — P2P Intent Matching</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ghost: #A78BFA;
+    --match: #34D399;
+    --fire: #F97316;
+    --btc: #F7931A;
+    --tnk: #7C3AED;
+    --cancel: #F87171;
+    --bg: #080818;
+    --card: #0F0F28;
+    --card2: #161630;
+    --border: rgba(167,139,250,0.12);
+    --text: #EEF0FF;
+    --muted: #6B6B99;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 25%, rgba(124,58,237,0.2) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 75%, rgba(52,211,153,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 10%, rgba(249,115,22,0.08) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* floating ghost particles */
+  .ghost-particle {
+    position: fixed;
+    font-size: 1.5rem;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
+    animation: float linear infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.06; }
+    90% { opacity: 0.06; }
+    100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+  }
+
+  .container {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 40px 0 28px;
+    animation: fadeDown 0.6s ease;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', cursive;
+    font-size: clamp(3rem, 10vw, 5.5rem);
+    letter-spacing: 0.05em;
+    background: linear-gradient(135deg, #A78BFA, #7C3AED, #34D399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .tagline strong { color: var(--ghost); }
+
+  .tinder-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--fire), #EF4444);
+    border-radius: 100px;
+    padding: 4px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-top: 10px;
+    letter-spacing: 0.05em;
+    animation: glow 2s infinite;
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 12px rgba(249,115,22,0.4); }
+    50% { box-shadow: 0 0 24px rgba(249,115,22,0.7); }
+  }
+
+  /* ── Stats ── */
+  .stats {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0 28px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .stat:nth-child(1) { animation-delay: 0.1s; }
+  .stat:nth-child(2) { animation-delay: 0.2s; }
+  .stat:nth-child(3) { animation-delay: 0.3s; }
+  .stat:nth-child(4) { animation-delay: 0.4s; }
+
+  .stat-dot { width: 7px; height: 7px; border-radius: 50%; animation: pulse 2s infinite; }
+  .dot-ghost { background: var(--ghost); }
+  .dot-match { background: var(--match); }
+  .dot-fire { background: var(--fire); }
+  .dot-btc { background: var(--btc); }
+
+  /* ── Post form ── */
+  .post-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.5s ease 0.2s both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .post-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--tnk), var(--ghost), var(--match));
+  }
+
+  .post-card h2 {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.3rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    color: var(--ghost);
+  }
+
+  .swap-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .token-input {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .token-input input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 11px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    min-width: 0;
+  }
+
+  .token-input input::placeholder { color: var(--muted); }
+
+  .token-select {
+    background: rgba(167,139,250,0.1);
+    border: none;
+    border-left: 1px solid var(--border);
+    padding: 11px 10px;
+    color: var(--ghost);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .token-select option { background: #1a1a3a; }
+
+  .arrow-for {
+    color: var(--muted);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .token-to {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .token-to select {
+    background: transparent;
+    border: none;
+    padding: 11px 14px;
+    color: var(--match);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .token-to select option { background: #1a1a3a; }
+
+  .btn-ghost {
+    background: linear-gradient(135deg, var(--tnk), var(--ghost));
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    color: white;
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(124,58,237,0.5);
+  }
+
+  /* ── Intents ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+    color: var(--ghost);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .count-badge {
+    background: linear-gradient(135deg, var(--tnk), var(--ghost));
+    border-radius: 100px;
+    padding: 2px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .intent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .intent-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    animation: slideIn 0.3s ease both;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .intent-item:hover {
+    transform: translateX(4px);
+    border-color: rgba(167,139,250,0.3);
+    box-shadow: 0 4px 20px rgba(124,58,237,0.1);
+  }
+
+  .intent-item.matched {
+    border-color: rgba(52,211,153,0.4);
+    background: linear-gradient(135deg, var(--card), rgba(52,211,153,0.05));
+  }
+
+  .intent-item.cancelled { opacity: 0.4; }
+
+  .intent-item.partial-match {
+    border-color: rgba(249,115,22,0.3);
+  }
+
+  .pair-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .token-pill {
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .pill-from { background: rgba(124,58,237,0.2); color: var(--ghost); border: 1px solid rgba(124,58,237,0.3); }
+  .pill-to { background: rgba(52,211,153,0.2); color: var(--match); border: 1px solid rgba(52,211,153,0.3); }
+  .pill-btc { background: rgba(247,147,26,0.2); color: var(--btc); border: 1px solid rgba(247,147,26,0.3); }
+
+  .arrow { color: var(--muted); font-size: 1rem; }
+
+  .intent-meta {
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .intent-id {
+    font-family: 'DM Mono', monospace;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.7rem;
+  }
+
+  .status-badge {
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .badge-open { background: rgba(167,139,250,0.15); color: var(--ghost); }
+  .badge-matched { background: rgba(52,211,153,0.15); color: var(--match); }
+  .badge-partial { background: rgba(249,115,22,0.15); color: var(--fire); }
+  .badge-cancelled { background: rgba(248,113,113,0.15); color: var(--cancel); }
+
+  .btn-cancel-small {
+    background: transparent;
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 8px;
+    padding: 4px 10px;
+    color: var(--cancel);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-cancel-small:hover { background: rgba(248,113,113,0.1); }
+
+  /* ── Match alert ── */
+  .match-alert {
+    background: linear-gradient(135deg, rgba(52,211,153,0.1), rgba(124,58,237,0.1));
+    border: 1px solid rgba(52,211,153,0.4);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    display: none;
+    animation: matchPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .match-alert.show { display: block; }
+
+  .match-alert-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.4rem;
+    letter-spacing: 0.05em;
+    color: var(--match);
+    margin-bottom: 8px;
+  }
+
+  .match-channel {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--ghost);
+    background: rgba(167,139,250,0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    margin-top: 8px;
+    display: inline-block;
+  }
+
+  @keyframes matchPop {
+    0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ── History ── */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .history-item {
+    background: var(--card2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .history-icon { font-size: 1rem; flex-shrink: 0; }
+  .history-text { flex: 1; color: var(--muted); }
+  .history-time { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.72rem; }
+
+  /* ── Empty ── */
+  .empty {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--muted);
+  }
+
+  .empty-emoji { font-size: 2.5rem; margin-bottom: 10px; }
+  .empty h3 { font-family: 'Bebas Neue', cursive; font-size: 1.2rem; color: var(--text); letter-spacing: 0.05em; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: linear-gradient(135deg, var(--tnk), var(--ghost));
+    color: white;
+    padding: 11px 24px;
+    border-radius: 100px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    z-index: 100;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 32px 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  footer a { color: var(--ghost); text-decoration: none; }
+
+  /* ── Animations ── */
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── Timer ── */
+  .timer-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 100px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s linear, background 1s;
+  }
+
+  .timer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* ── Transaction Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,8,24,0.85);
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .modal-overlay.hidden { display: none; }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid rgba(52,211,153,0.3);
+    border-radius: 24px;
+    padding: 28px 24px;
+    max-width: 420px;
+    width: 100%;
+    position: relative;
+    animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.85) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.8rem;
+    letter-spacing: 0.05em;
+    color: var(--match);
+    margin-bottom: 4px;
+  }
+
+  .modal-subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+
+  .swap-summary {
+    background: var(--card2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .swap-side {
+    text-align: center;
+    flex: 1;
+  }
+
+  .swap-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .swap-token {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .swap-arrow-big {
+    font-size: 1.5rem;
+    color: var(--match);
+  }
+
+  .steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+  }
+
+  .step-item.active {
+    border-color: rgba(167,139,250,0.4);
+    background: rgba(167,139,250,0.08);
+  }
+
+  .step-item.done {
+    border-color: rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.05);
+  }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+
+  .step-item.active .step-num { background: var(--tnk); border-color: var(--ghost); color: white; }
+  .step-item.done .step-num { background: var(--match); border-color: var(--match); color: white; }
+
+  .step-text { flex: 1; font-size: 0.88rem; }
+  .step-item.done .step-text { color: var(--muted); text-decoration: line-through; }
+
+  .btn-next {
+    width: 100%;
+    background: linear-gradient(135deg, var(--tnk), var(--ghost));
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    color: white;
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin-bottom: 10px;
+  }
+
+  .btn-next:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.5); }
+
+  .btn-abort {
+    width: 100%;
+    background: transparent;
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 14px;
+    padding: 10px;
+    color: var(--cancel);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-abort:hover { background: rgba(248,113,113,0.08); }
+
+  .complete-checkmark {
+    font-size: 3rem;
+    text-align: center;
+    margin: 10px 0;
+    animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes bounceIn {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  @media (max-width: 500px) {
+    .swap-row { flex-direction: column; }
+    .btn-ghost { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Floating ghosts -->
+<div class="ghost-particle" style="left:5%;animation-duration:18s;animation-delay:0s">👻</div>
+<div class="ghost-particle" style="left:20%;animation-duration:22s;animation-delay:4s">👻</div>
+<div class="ghost-particle" style="left:60%;animation-duration:16s;animation-delay:8s">👻</div>
+<div class="ghost-particle" style="left:80%;animation-duration:20s;animation-delay:2s">👻</div>
+<div class="ghost-particle" style="left:40%;animation-duration:25s;animation-delay:12s">👻</div>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">👻 GhostSwap</div>
+    <p class="tagline">P2P Intent Matching on <strong>IntercomSwap / Trac Network</strong></p>
+    <div class="tinder-badge">🔥 Tinder for Crypto Trades</div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><div class="stat-dot dot-ghost"></div><span id="peer-count">1 peer online</span></div>
+    <div class="stat"><div class="stat-dot dot-match"></div><span id="open-count">0 open intents</span></div>
+    <div class="stat"><div class="stat-dot dot-fire"></div><span id="match-count">0 matched</span></div>
+    <div class="stat"><div class="stat-dot dot-btc"></div><span>TNK/BTC</span></div>
+  </div>
+
+  <!-- Match Alert -->
+  <div class="match-alert" id="match-alert">
+    <div class="match-alert-title">🔥 MATCH FOUND!</div>
+    <div id="match-details"></div>
+    <div class="match-channel" id="match-channel"></div>
+  </div>
+
+  <!-- Post Intent -->
+  <div class="post-card">
+    <h2>👻 Broadcast Your Intent</h2>
+    <div class="swap-row">
+      <div class="token-input">
+        <input type="number" id="amount-input" placeholder="100" min="0" step="any" />
+        <select class="token-select" id="from-token">
+          <option value="TNK">TNK</option>
+          <option value="BTC">BTC</option>
+          <option value="USDT">USDT</option>
+          <option value="SOL">SOL</option>
+        </select>
+      </div>
+      <div class="arrow-for">→</div>
+      <div class="token-to">
+        <select id="to-token">
+          <option value="BTC">BTC</option>
+          <option value="TNK">TNK</option>
+          <option value="USDT">USDT</option>
+          <option value="SOL">SOL</option>
+        </select>
+      </div>
+      <button class="btn-ghost" onclick="postIntent()">GHOST IT</button>
+    </div>
+  </div>
+
+  <!-- Open Intents -->
+  <div class="section-header">
+    <div class="section-title">⚡ Open Intents <span class="count-badge" id="intent-badge">0</span></div>
+  </div>
+  <div class="intent-list" id="intent-list">
+    <div class="empty"><div class="empty-emoji">👻</div><h3>No intents yet</h3><p>Be the first to broadcast one above</p></div>
+  </div>
+
+  <!-- History -->
+  <div class="section-header" style="margin-top:8px">
+    <div class="section-title">📜 Recent History</div>
+  </div>
+  <div class="history-list" id="history-list">
+    <div class="empty" style="padding:20px"><p>No history yet</p></
